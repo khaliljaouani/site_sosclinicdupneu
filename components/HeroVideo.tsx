@@ -1,34 +1,52 @@
 "use client";
+import { useEffect, useRef } from "react";
 
 export default function HeroVideo() {
-  return (
-    <section className="relative h-screen w-full overflow-hidden">
-      {/* Vidéo de fond */}
-      <video
-        className="absolute inset-0 h-full w-full object-cover"
-        src="/hero.mp4"
-        autoPlay
-        muted
-        loop
-        playsInline
-        poster="/poster.jpg"
-      />
-      {/* Overlay assombrissant */}
-      <div className="absolute inset-0 bg-black/50" />
+  const ref = useRef<HTMLVideoElement>(null);
 
-      {/* Contenu */}
-      <div className="relative z-10 flex h-full flex-col items-center justify-center text-center text-white px-4">
-        <h1 className="text-5xl font-extrabold md:text-6xl">SOS Clinic du Pneu</h1>
-        <p className="mt-4 max-w-xl text-lg text-white/90">
-          Dépannage & changement de pneus 24/7 en Île-de-France — rapide et pro.
-        </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-4">
-          <a href="tel:+33600000000" className="btn-primary">📞 07 63 72 08 75</a>
-          <a href="#contact" className="rounded-lg border border-white/50 px-6 py-3 transition hover:bg-white/10">
-            Demander un dépannage
-          </a>
-        </div>
-      </div>
-    </section>
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+
+    // iOS/Safari : s’assurer que la vidéo est bien muette et inline
+    v.muted = true;
+    // @ts-ignore - pour iOS plus ancien
+    v.setAttribute("webkit-playsinline", "true");
+    v.setAttribute("muted", ""); // certains iOS exigent l’attribut en plus de la prop
+
+    // essaie de lancer la lecture dès que possible
+    const tryPlay = async () => {
+      try {
+        await v.play();
+      } catch {
+        /* si l’autoplay est bloqué (mode économie d’énergie), on laisse l’affiche (poster) */
+      }
+    };
+
+    // lance à l’apparition, et si l’onglet redevient visible
+    tryPlay();
+    const onVis = () => document.visibilityState === "visible" && tryPlay();
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
+
+  return (
+    <div className="relative h-[75vh] md:h-[90vh] overflow-hidden">
+     <video
+  src="/hero.mp4"
+  className="absolute inset-0 h-full w-full object-cover"
+  autoPlay
+  muted
+  loop
+  playsInline
+  preload="metadata"   // ou "auto" si tu veux charger plus vite
+  poster="/poster.jpg" // optionnel: image de fallback
+/>
+
+      {/* voile sombre au-dessus */}
+      <div className="absolute inset-0 bg-black/50" />
+      {/* ton contenu par-dessus */}
+      <div className="relative z-10">{/* ... */}</div>
+    </div>
   );
 }

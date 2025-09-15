@@ -1,4 +1,6 @@
 "use client";
+import { motion } from "framer-motion";
+
 
 type Props = {
   phone?: string;          // ex: "+33689143671"
