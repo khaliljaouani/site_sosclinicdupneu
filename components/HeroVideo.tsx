@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useRef } from "react";
 
 export default function HeroVideo() {
@@ -8,45 +9,51 @@ export default function HeroVideo() {
     const v = ref.current;
     if (!v) return;
 
-    // iOS/Safari : s’assurer que la vidéo est bien muette et inline
-    v.muted = true;
-    // @ts-ignore - pour iOS plus ancien
-    v.setAttribute("webkit-playsinline", "true");
-    v.setAttribute("muted", ""); // certains iOS exigent l’attribut en plus de la prop
+    // Petits hacks iOS/Safari
+    v.muted = true;                     // indispensable pour l’autoplay
+    // @ts-ignore - compat iOS vieux Safari
+    v.defaultMuted = true;              // certains iOS respectent mieux defaultMuted
+    v.playsInline = true;
+    v.setAttribute("playsinline", "");
+    v.setAttribute("webkit-playsinline", "");
 
-    // essaie de lancer la lecture dès que possible
-    const tryPlay = async () => {
-      try {
-        await v.play();
-      } catch {
-        /* si l’autoplay est bloqué (mode économie d’énergie), on laisse l’affiche (poster) */
-      }
-    };
+    const tryPlay = () => v.play().catch(() => {/* ignore */});
 
-    // lance à l’apparition, et si l’onglet redevient visible
+    // 1) Essaye immédiatement
     tryPlay();
-    const onVis = () => document.visibilityState === "visible" && tryPlay();
+
+    // 2) Si l’autoplay est bloqué, joue dès la première interaction
+    const onInteract = () => tryPlay();
+    window.addEventListener("touchstart", onInteract, { once: true, passive: true });
+    window.addEventListener("click", onInteract, { once: true });
+
+    // 3) Reprend quand l’onglet redevient visible
+    const onVis = () => (document.visibilityState === "visible" ? tryPlay() : v.pause());
     document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("touchstart", onInteract);
+      window.removeEventListener("click", onInteract);
+    };
   }, []);
 
   return (
-    <div className="relative h-[75vh] md:h-[90vh] overflow-hidden">
-     <video
-  src="/hero.mp4"
-  className="absolute inset-0 h-full w-full object-cover"
-  autoPlay
-  muted
-  loop
-  playsInline
-  preload="metadata"   // ou "auto" si tu veux charger plus vite
-  poster="/poster.jpg" // optionnel: image de fallback
-/>
-
-      {/* voile sombre au-dessus */}
-      <div className="absolute inset-0 bg-black/50" />
-      {/* ton contenu par-dessus */}
-      <div className="relative z-10">{/* ... */}</div>
-    </div>
+    <video
+      ref={ref}
+      className="absolute inset-0 h-full w-full object-cover"
+      autoPlay
+      muted
+      loop
+      playsInline
+      preload="auto"
+      disablePictureInPicture
+      controls={false}
+      // poster="/poster.jpg" // optionnel: enlève-le le temps du test
+    >
+      {/* Si tu génères un .webm, laisse-le en premier */}
+      {/* <source src="/hero.webm" type="video/webm" /> */}
+      <source src="/hero.mp4" type="video/mp4" />
+    </video>
   );
 }
